@@ -1,0 +1,468 @@
+---
+alwaysApply: true
+---
+
+# Todo App - Project Memory
+
+## Project Overview
+
+This is a **full-stack TypeScript todo application** built with a modern monorepo architecture using **Turborepo** and **Bun** as the package manager. The project uses **Better-T-Stack** framework stack combining React, TanStack Start, Hono, TRPC, Prisma, and Better-Auth.
+
+### Tech Stack Summary
+
+- **Runtime**: Bun 1.2.17
+- **Frontend**: React 19.1.0 + TanStack Start (SSR) + TanStack Router + TanStack Query
+- **Backend**: Hono + TRPC
+- **Database**: PostgreSQL (via Docker) + Prisma ORM
+- **Authentication**: Better-Auth
+- **Styling**: TailwindCSS 4 + shadcn/ui components
+- **Build Tools**: Vite, tsdown
+- **Monorepo**: Turborepo
+- **Linting/Formatting**: Biome
+- **Git Hooks**: Husky + lint-staged
+- **Deployment**: Cloudflare Workers (Wrangler) for web app
+
+## Project Structure
+
+```
+todo-app/
+├── apps/
+│   ├── server/              # Backend API server (Hono + TRPC)
+│   │   ├── src/
+│   │   │   └── index.ts     # Main server entry point
+│   │   ├── package.json
+│   │   ├── tsconfig.json
+│   │   └── tsdown.config.ts
+│   │
+│   └── web/                 # Frontend application (TanStack Start)
+│       ├── src/
+│       │   ├── components/  # React components
+│       │   │   ├── ui/      # shadcn/ui components
+│       │   │   ├── header.tsx
+│       │   │   ├── loader.tsx
+│       │   │   ├── sign-in-form.tsx
+│       │   │   ├── sign-up-form.tsx
+│       │   │   └── user-menu.tsx
+│       │   ├── functions/   # Server functions
+│       │   │   └── get-user.ts
+│       │   ├── lib/         # Utility libraries
+│       │   │   ├── utils.ts
+│       │   │   └── auth-client.ts
+│       │   ├── middleware/  # Route middleware
+│       │   │   └── auth.ts
+│       │   ├── routes/      # TanStack Router routes
+│       │   │   ├── __root.tsx
+│       │   │   ├── index.tsx
+│       │   │   ├── dashboard.tsx
+│       │   │   └── login.tsx
+│       │   ├── utils/       # Utility functions
+│       │   │   └── trpc.ts
+│       │   ├── index.css
+│       │   └── router.tsx   # Router configuration
+│       ├── public/
+│       │   └── robots.txt
+│       ├── package.json
+│       ├── components.json  # shadcn/ui config
+│       ├── vite.config.ts
+│       ├── wrangler.jsonc   # Cloudflare Workers config
+│       └── tsconfig.json
+│
+├── packages/
+│   ├── api/                 # API layer / Business logic (TRPC routers)
+│   │   ├── src/
+│   │   │   ├── index.ts     # TRPC initialization
+│   │   │   ├── context.ts   # TRPC context creation
+│   │   │   └── routers/
+│   │   │       └── index.ts # Main app router
+│   │   ├── package.json
+│   │   ├── tsconfig.json
+│   │   └── tsdown.config.ts
+│   │
+│   ├── auth/                # Authentication package (Better-Auth)
+│   │   ├── src/
+│   │   │   └── index.ts     # Better-Auth configuration
+│   │   ├── package.json
+│   │   ├── tsconfig.json
+│   │   ├── tsdown.config.ts
+│   │   └── .gitignore
+│   │
+│   └── db/                  # Database package (Prisma)
+│       ├── prisma/
+│       │   └── schema/
+│       │       ├── schema.prisma    # Prisma generator & datasource config
+│       │       └── auth.prisma      # Better-Auth models (User, Session, Account, Verification)
+│       ├── src/
+│       │   └── index.ts     # Prisma client export
+│       ├── docker-compose.yml  # PostgreSQL Docker setup
+│       ├── package.json
+│       ├── prisma.config.ts
+│       ├── tsconfig.json
+│       └── tsdown.config.ts
+│
+├── .cursor/
+│   └── rules/
+│       └── project-memory.mdc  # This file
+│
+├── .vscode/
+│   └── settings.json        # VS Code settings (format on save, formatters)
+│
+├── package.json            # Root package.json with workspaces
+├── turbo.json              # Turborepo configuration
+├── tsconfig.json           # Root TypeScript config
+├── tsconfig.base.json      # Base TypeScript config
+├── biome.json              # Biome linting/formatting config
+├── bunfig.toml             # Bun configuration
+├── bts.jsonc               # Better-T-Stack configuration
+├── .prettierrc             # Prettier configuration
+├── .gitignore              # Git ignore rules
+└── README.md               # Project documentation
+```
+
+## Package Details
+
+### Root Package (`package.json`)
+
+- **Workspaces**: `apps/*` and `packages/*`
+- **Package Manager**: Bun 1.2.17
+- **Dependency Catalog**: Centralized version management for shared dependencies
+    - hono: ^4.8.2
+    - @trpc/server: ^11.5.0
+    - @trpc/client: ^11.5.0
+    - better-auth: ^1.3.28
+    - dotenv: ^17.2.2
+    - zod: ^4.1.11
+    - typescript: ^5.8.2
+    - tsdown: ^0.15.5
+    - @prisma/client: ^6.15.0
+- **Scripts**:
+    - `dev`: Start all apps in development mode
+    - `dev:web`: Start only web app
+    - `dev:server`: Start only server
+    - `build`: Build all apps
+    - `check-types`: Type check all packages
+    - `check`: Run Biome linting/formatting
+    - `db:*`: Database management commands (push, studio, generate, migrate, start, stop, watch, down)
+
+### Apps
+
+#### `apps/server` - Backend API Server
+
+- **Framework**: Hono
+- **API Layer**: TRPC (via @hono/trpc-server)
+- **Port**: 3000 (default)
+- **Entry Point**: `src/index.ts`
+- **Features**:
+    - CORS enabled with configurable origin
+    - Logger middleware
+    - Better-Auth handler at `/api/auth/*`
+    - TRPC router at `/trpc/*`
+    - Health check endpoint at `/`
+- **Dependencies**: hono, @trpc/server, @hono/trpc-server, better-auth, dotenv, zod
+- **Workspace Dependencies**: @todo-app/api, @todo-app/auth, @todo-app/db
+- **Build**: Uses tsdown to bundle to `dist/`
+
+#### `apps/web` - Frontend Application
+
+- **Framework**: TanStack Start (SSR)
+- **Router**: TanStack Router
+- **State Management**: TanStack Query
+- **Port**: 3001 (dev mode)
+- **Entry Point**: `src/router.tsx`
+- **Features**:
+    - Server-side rendering with TanStack Start
+    - Type-safe API calls via TRPC
+    - Authentication pages (login, sign-up)
+    - Protected dashboard route
+    - shadcn/ui component library
+    - TailwindCSS 4 for styling
+    - Cloudflare Workers deployment support
+- **UI Components** (shadcn/ui):
+    - button, card, checkbox, dropdown-menu, input, label, skeleton, sonner (toast)
+- **Routes**:
+    - `/` - Index/home page
+    - `/login` - Login page
+    - `/dashboard` - Protected dashboard
+- **Environment Variables**:
+    - `VITE_SERVER_URL` - Backend API URL
+- **Build**: Vite builds to `.output/public` for Cloudflare deployment
+- **Dependencies**: React 19.1.0, TanStack stack, TailwindCSS, shadcn/ui, radix-ui, lucide-react, sonner
+
+### Packages
+
+#### `packages/api` - API Layer
+
+- **Purpose**: TRPC router definitions and business logic
+- **Structure**:
+    - `src/index.ts`: TRPC initialization (`t`, `router`, `publicProcedure`, `protectedProcedure`)
+    - `src/context.ts`: TRPC context creation with Better-Auth session
+    - `src/routers/index.ts`: Main app router with example routes
+- **Current Routes**:
+    - `healthCheck`: Public health check endpoint
+    - `privateData`: Protected endpoint requiring authentication
+- **Dependencies**: @trpc/server, @trpc/client, hono, zod, @todo-app/auth, @todo-app/db
+- **Build**: tsdown generates type definitions and ES modules
+
+#### `packages/auth` - Authentication
+
+- **Purpose**: Better-Auth configuration and setup
+- **Features**:
+    - Prisma adapter for PostgreSQL
+    - Email/password authentication enabled
+    - Cookie-based sessions with secure settings
+    - Trusted origins configuration
+- **Configuration** (`src/index.ts`):
+    - Uses Prisma adapter
+    - Email/password provider enabled
+    - Secure cookies (sameSite: "none", secure: true, httpOnly: true)
+- **Dependencies**: better-auth, dotenv, zod, @todo-app/db
+- **Build**: tsdown generates type definitions
+
+#### `packages/db` - Database
+
+- **Purpose**: Prisma schema, migrations, and client
+- **Database**: PostgreSQL (via Docker)
+- **Prisma Configuration**:
+    - Generator: prisma-client with ESM module format, Bun runtime
+    - Datasource: PostgreSQL
+    - Environment: `DATABASE_URL` from `apps/server/.env`
+- **Schema Files**:
+    - `schema.prisma`: Generator and datasource configuration
+    - `auth.prisma`: Better-Auth models (User, Session, Account, Verification)
+- **Docker Setup** (`docker-compose.yml`):
+    - PostgreSQL container: `todo-app-postgres`
+    - Port: 5432
+    - Database: `todo-app`
+    - User: `postgres`
+    - Password: `password`
+    - Volume: `todo-app_postgres_data`
+- **Scripts**:
+    - `db:push`: Push schema to database
+    - `db:studio`: Open Prisma Studio
+    - `db:generate`: Generate Prisma client
+    - `db:migrate`: Run migrations
+    - `db:start`: Start Docker container
+    - `db:stop`: Stop Docker container
+    - `db:watch`: Watch Docker container logs
+    - `db:down`: Stop and remove Docker container
+- **Dependencies**: @prisma/client, dotenv, zod
+- **Build**: tsdown generates type definitions and exports Prisma client
+
+## Configuration Files
+
+### TypeScript Configuration
+
+- **Base Config** (`tsconfig.base.json`):
+    - Target: ESNext
+    - Module: ESNext
+    - Module resolution: bundler
+    - Strict mode enabled
+    - No unchecked indexed access
+    - No unused locals/parameters
+    - Types: bun
+- **Root Config** (`tsconfig.json`): Extends base config
+- **Package Configs**: All extend base config with specific overrides:
+    - `apps/server`: Composite project, JSX for Hono
+    - `apps/web`: React JSX, DOM types, Vite types
+    - `packages/*`: Declaration files, composite projects
+
+### Build Configuration
+
+#### Turborepo (`turbo.json`)
+
+- **Tasks**:
+    - `build`: Depends on ^build, outputs to dist/\*\*
+    - `lint`: Depends on ^lint
+    - `check-types`: Depends on ^check-types
+    - `dev`: Persistent, no cache
+    - `db:*`: Persistent, no cache
+- **UI**: TUI (Terminal UI)
+
+#### tsdown Configuration
+
+- **Packages**: Build TypeScript to ESM with type definitions
+- **Server**: Bundle entry point with no external dependencies for workspace packages
+
+#### Vite Configuration (`apps/web/vite.config.ts`)
+
+- **Plugins**:
+    - Cloudflare plugin for Workers deployment
+    - tsconfigPaths for path aliases
+    - TailwindCSS Vite plugin
+    - TanStack Start plugin
+    - React plugin
+
+### Linting & Formatting
+
+#### Biome (`biome.json`)
+
+- **Linter**: Enabled with recommended rules
+- **JavaScript Formatter**: Double quotes
+- **Rules**:
+    - Organized imports on save
+    - Sorted Tailwind classes (clsx, cva, cn functions)
+    - Style rules: no parameter assign, use as const, etc.
+- **Ignored**: .next, dist, .turbo, dev-dist, .zed, .vscode, routeTree.gen.ts, etc.
+
+#### Prettier (`.prettierrc`)
+
+- Semi: false
+- Single quote: true
+- Tab width: 4
+- Use tabs: true
+- Trailing comma: es5
+- Print width: 100
+
+### Deployment
+
+#### Cloudflare Workers (`apps/web/wrangler.jsonc`)
+
+- **Name**: todo-app
+- **Main**: @tanstack/react-start/server-entry
+- **Compatibility Date**: 2025-07-05
+- **Flags**: nodejs_compat
+- **Assets**: .output/public directory
+- **Observability**: Enabled
+- **KV Namespaces**: Commented out (available for caching)
+
+### Development Tools
+
+#### VS Code Settings (`.vscode/settings.json`)
+
+- Format on save enabled
+- Prettier as default formatter for JS/TS/JSON
+- Formatters configured for all relevant file types
+
+#### Git Hooks (Husky)
+
+- Pre-commit: lint-staged runs Biome check on staged files
+- Hook types: JS, TS, CJS, MJS, DTS, JSX, TSX, JSON, JSONC
+
+## Development Workflow
+
+### Getting Started
+
+1. Install dependencies: `bun install`
+2. Start database: `bun db:start` (or `docker compose up -d` in packages/db)
+3. Set up environment variables in `apps/server/.env`:
+    - `DATABASE_URL` - PostgreSQL connection string
+    - `CORS_ORIGIN` - Frontend origin (e.g., http://localhost:3001)
+4. Push database schema: `bun db:push`
+5. Start development servers: `bun dev`
+    - Web app: http://localhost:3001
+    - API server: http://localhost:3000
+
+### Database Management
+
+- **Push schema**: `bun db:push` (development)
+- **Generate client**: `bun db:generate` (after schema changes)
+- **Create migration**: `bun db:migrate` (production-ready migrations)
+- **View data**: `bun db:studio` (Prisma Studio UI)
+- **Docker**: `bun db:start` / `bun db:stop` / `bun db:down`
+
+### Building
+
+- **All apps**: `bun build`
+- **Type checking**: `bun check-types`
+- **Linting/Formatting**: `bun check`
+
+### Deployment
+
+- **Web app**: `cd apps/web && bun deploy` (deploys to Cloudflare Workers)
+
+## Architecture Patterns
+
+### Monorepo Structure
+
+- **Apps**: Runnable applications (server, web)
+- **Packages**: Shared libraries (api, auth, db)
+- **Workspace Protocol**: Uses `workspace:*` for internal dependencies
+- **Build Order**: Turborepo manages build dependencies automatically
+
+### API Architecture
+
+- **TRPC**: Type-safe API layer
+- **Context**: Created per request with session from Better-Auth
+- **Procedures**:
+    - `publicProcedure`: No authentication required
+    - `protectedProcedure`: Requires valid session
+- **Router Pattern**: Modular routers in `packages/api/src/routers/`
+
+### Authentication Flow
+
+- **Better-Auth**: Handles authentication at `/api/auth/*`
+- **Session Management**: Cookie-based sessions with secure settings
+- **Database**: User, Session, Account, Verification models in Prisma
+- **Frontend**: Uses Better-Auth client for authentication state
+
+### Frontend Architecture
+
+- **SSR**: TanStack Start provides server-side rendering
+- **Routing**: File-based routing in `src/routes/`
+- **State**: TanStack Query for server state, React for UI state
+- **API Communication**: TRPC client with automatic type inference
+- **Components**: shadcn/ui components with TailwindCSS styling
+
+## Key Dependencies
+
+### Runtime & Build
+
+- **Bun**: Package manager and runtime
+- **TypeScript**: Type system
+- **Vite**: Frontend build tool
+- **tsdown**: TypeScript bundler for packages
+
+### Frontend
+
+- **React 19.1.0**: UI library
+- **TanStack Start**: SSR framework
+- **TanStack Router**: File-based routing
+- **TanStack Query**: Data fetching and caching
+- **TailwindCSS 4**: Utility-first CSS
+- **shadcn/ui**: Component library
+- **Radix UI**: Headless UI primitives
+- **Lucide React**: Icon library
+- **Sonner**: Toast notifications
+
+### Backend
+
+- **Hono**: Web framework
+- **TRPC**: Type-safe API layer
+- **Better-Auth**: Authentication library
+- **Prisma**: ORM and database toolkit
+- **PostgreSQL**: Database
+
+### Development
+
+- **Turborepo**: Monorepo build system
+- **Biome**: Linting and formatting
+- **Husky**: Git hooks
+- **lint-staged**: Pre-commit linting
+
+## Environment Variables
+
+### Server (`apps/server/.env`)
+
+- `DATABASE_URL` - PostgreSQL connection string (e.g., `postgresql://postgres:password@localhost:5432/todo-app`)
+- `CORS_ORIGIN` - Frontend origin for CORS (e.g., `http://localhost:3001`)
+
+### Web (`apps/web/.env`)
+
+- `VITE_SERVER_URL` - Backend API URL (e.g., `http://localhost:3000`)
+
+## File Naming Conventions
+
+- **Components**: kebab-case (e.g., `sign-in-form.tsx`)
+- **Routes**: kebab-case (e.g., `dashboard.tsx`)
+- **Config Files**: Various (e.g., `tsconfig.json`, `vite.config.ts`, `biome.json`)
+- **TypeScript**: `.ts` or `.tsx`
+- **Config**: `.json`, `.jsonc`, `.toml`
+
+## Important Notes
+
+- **Package Manager**: Always use Bun, not npm/yarn/pnpm
+- **Database**: Runs in Docker, managed via docker-compose.yml in packages/db
+- **Type Safety**: End-to-end type safety via TRPC between frontend and backend
+- **Import Paths**: Use workspace protocol (`@todo-app/*`) for internal packages
+- **Build Output**: Packages build to `dist/`, web app builds to `.output/public`
+- **Development**: Hot reload enabled for both server and web apps
+- **Formatting**: Biome handles formatting (Prettier config exists but Biome is primary)
